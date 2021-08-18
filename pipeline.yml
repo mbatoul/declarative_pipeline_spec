@@ -1,0 +1,187 @@
+global:
+  target: count
+  errors:
+    - neg_mean_absolute_error
+    - neg_root_mean_squared_error
+steps:
+  - type: downloader
+    path: sklearn.datasets.fetch_openml
+    kwargs:
+      version: 2
+      as_frame: True
+
+  - type: preprocessor
+    name: Collapse heavy_rain weather category into rain
+    path: sklearn.preprocessing.FunctionTransformer
+    args:
+      func:
+        - type: function
+          path: custom.collapse_heavy_rain_into_rain
+
+  - type: preprocessor
+    name: Rescale count
+    path: sklearn.preprocessing.FunctionTransformer
+    kwargs:
+      func:
+        - type: function
+          path: custom.rescale_count
+
+  - type: splitter
+    path: sklearn.model_selection.TimeSeriesSplit
+    kwargs:
+      n_splits: 5
+      gap: 48
+      max_train_size: 10000
+      test_size: 1000
+
+  # Gradient boosted trees
+  - type: pipeline
+    transformers:
+      - type: preprocessor
+        name: categorical
+        path: sklearn.preprocessing.OrdinalEncoder
+        kwargs:
+          categories:
+            - [clear, misty, rain]
+            - [spring, summer, fall, winter]
+            - [False, True]
+            - [False, True]
+        columns:
+          - weather
+          - season
+          - holiday
+          - workingday
+    kwargs:
+      remainder: passthrough
+    estimator:
+      path: sklearn.ensemble.HistGradientBoostingRegressor
+      init:
+        kwargs:
+          categorical_features:
+            - 1
+            - 2
+            - 3
+            - 4
+
+  # Trigonometric features
+  - type: pipeline
+    transformers:
+      - type: preprocessor
+        name: categorical
+        path: sklearn.preprocessing.OneHotEncoder
+        kwargs:
+          handle_unknown: ignore
+          sparse: False
+        columns:
+          - weather
+          - season
+          - holiday
+          - workingday
+
+      - type: preprocessor
+        name: categorical
+        path: sklearn.preprocessing.FunctionTransformer
+        kwargs:
+          func:
+            - type: function
+              path: custom.sin_transformer
+              args:
+                - 12
+        columns:
+          - month
+
+      - type: preprocessor
+        name: categorical
+        path: sklearn.preprocessing.FunctionTransformer
+        kwargs:
+          func:
+            - type: function
+              path: custom.cos_transformer
+              args:
+                - 12
+        columns:
+          - month
+
+      - type: preprocessor
+        name: categorical
+        path: sklearn.preprocessing.FunctionTransformer
+        kwargs:
+          func:
+            - type: function
+              path: custom.sin_transformer
+              args:
+                - 7
+        columns:
+          - weekday
+
+      - type: preprocessor
+        name: categorical
+        path: sklearn.preprocessing.FunctionTransformer
+        kwargs:
+          func:
+            - type: function
+              path: custom.cos_transformer
+              args:
+                - 7
+        columns:
+          - weekday
+
+      - type: preprocessor
+        name: categorical
+        path: sklearn.preprocessing.FunctionTransformer
+        kwargs:
+          func:
+            - type: function
+              path: custom.sin_transformer
+              args:
+                - 24
+        columns:
+          - hour
+
+      - type: preprocessor
+        name: categorical
+        path: sklearn.preprocessing.FunctionTransformer
+        kwargs:
+          func:
+            - type: function
+              path: custom.cos_transformer
+              args:
+                - 24
+        columns:
+          - hour
+
+    kwargs:
+      remainder:
+        type: preprocessor
+        path: sklearn.preprocessing.MinMaxScaler
+
+    estimator:
+      path: sklearn.linear_model.RidgeCV
+      init:
+        kwargs:
+          alphas:
+            - 1.00000000e-06
+            - 3.16227766e-06
+            - 1.00000000e-05
+            - 3.16227766e-05
+            - 1.00000000e-04
+            - 3.16227766e-04
+            - 1.00000000e-03
+            - 3.16227766e-03
+            - 1.00000000e-02
+            - 3.16227766e-02
+            - 1.00000000e-01
+            - 3.16227766e-01
+            - 1.00000000e+00
+            - 3.16227766e+00
+            - 1.00000000e+01
+            - 3.16227766e+01
+            - 1.00000000e+02
+            - 3.16227766e+02
+            - 1.00000000e+03
+            - 3.16227766e+03
+            - 1.00000000e+04
+            - 3.16227766e+04
+            - 1.00000000e+05
+            - 3.16227766e+05
+            - 1.00000000e+06
