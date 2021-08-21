@@ -1,424 +1,63 @@
-global:
-  target: count
+evaluation:
+  data_source_name: Bike_Sharing_Demand
   scores:
     - neg_mean_absolute_error
     - neg_root_mean_squared_error
-steps:
-  - type: downloader
-    path: sklearn.datasets.fetch_openml
-    kwargs:
-      version: 2
-      as_frame: True
-
-  - type: preprocessor
-    path: custom_transformers.weather_transformer
-    columns:
-      - weather
-
-  - type: preprocessor
-    path: custom_transformers.count_transformer
-    columns:
-      - count
-
-  - type: splitter
-    path: sklearn.model_selection.TimeSeriesSplit
-    kwargs:
+  pipeline_name: binned_time_poly_kernel_approx
+  cross_validation:
+    splitter: sklearn.model_selection.TimeSeriesSplit
+    params:
       n_splits: 5
       gap: 48
       max_train_size: 10000
       test_size: 1000
 
-  # Gradient boosted trees
-  - type: pipeline
-    steps:
-      - type: column_transformer
-        steps:
-          - type: preprocessor
-            name: categorical
-            path: sklearn.preprocessing.OrdinalEncoder
-            kwargs:
-              categories:
-                - [clear, misty, rain]
-                - [spring, summer, fall, winter]
-                - [False, True]
-                - [False, True]
-            columns:
-              - weather
-              - season
-              - holiday
-              - workingday
-        kwargs:
-          remainder: passthrough
-      
-          - type: estimator
-        path: sklearn.ensemble.HistGradientBoostingRegressor
-        kwargs:
-          categorical_features:
-            - 1
-            - 2
-            - 3
-            - 4
-
-  # Trigonometric features
-  - type: pipeline
-    steps:
-      - type: column_transformer
-        steps:
-          - type: preprocessor
-            name: categorical
-            path: sklearn.preprocessing.OneHotEncoder
-            kwargs:
-              handle_unknown: ignore
-              sparse: False
-            columns:
-              - weather
-              - season
-              - holiday
-              - workingday
-
-          - type: preprocessor
-            name: cyclic_month
-            path: custom.periodic_spline_transformer
-            args:
-              - 12
-            kwargs:
-              n_splines: 6
-            columns:
-              - month
-
-          - type: preprocessor
-            name: cyclic_weekday
-            path: custom.periodic_spline_transformer
-            args:
-              - 7
-            kwargs:
-              n_splines: 3
-            columns:
-              - weekday
-
-          - type: preprocessor
-            cyclic_hour: categorical
-            path: custom.periodic_spline_transformer
-            args:
-              - 24
-            kwargs:
-              n_splines: 12
-            columns:
-              - hour
-        
-        kwargs:
-          remainder:
-            type: preprocessor
-            path: sklearn.preprocessing.MinMaxScaler
-
-    estimator:
-      path: sklearn.linear_model.RidgeCV
-      kwargs:
-        alphas:
-          - 1.00000000e-06
-          - 3.16227766e-06
-          - 1.00000000e-05
-          - 3.16227766e-05
-          - 1.00000000e-04
-          - 3.16227766e-04
-          - 1.00000000e-03
-          - 3.16227766e-03
-          - 1.00000000e-02
-          - 3.16227766e-02
-          - 1.00000000e-01
-          - 3.16227766e-01
-          - 1.00000000e+00
-          - 3.16227766e+00
-          - 1.00000000e+01
-          - 3.16227766e+01
-          - 1.00000000e+02
-          - 3.16227766e+02
-          - 1.00000000e+03
-          - 3.16227766e+03
-          - 1.00000000e+04
-          - 3.16227766e+04
-          - 1.00000000e+05
-          - 3.16227766e+05
-          - 1.00000000e+06
-
-  # Periodic spline features
-  - type: pipeline
-    column_transformer:
-      - type: preprocessor
-        name: categorical
-        path: sklearn.preprocessing.OneHotEncoder
-        kwargs:
-          handle_unknown: ignore
-          sparse: False
-        columns:
-          - weather
-          - season
-          - holiday
-          - workingday
-
-      - type: preprocessor
-        name: cyclic_month
-        path: custom.periodic_spline_transformer
-        args:
-          - 12
-        kwargs:
-          n_splines: 6
-        columns:
-          - month
-
-      - type: preprocessor
-        name: cyclic_weekday
-        path: custom.periodic_spline_transformer
-        args:
-          - 7
-        kwargs:
-          n_splines: 3
-        columns:
-          - weekday
-
-      - type: preprocessor
-        cyclic_hour: categorical
-        path: custom.periodic_spline_transformer
-        args:
-          - 24
-        kwargs:
-          n_splines: 12
-        columns:
-          - hour
-
+data_sources:
+  - name: Preprocessed_Bike_Sharing_Demand
+    callable: auxiliarymodule.fetch_preprocess_bike_sharing
     kwargs:
-      remainder:
-        type: preprocessor
-        path: sklearn.preprocessing.MinMaxScaler
+      name: Bike_Sharing_Demand
+      version: 2
 
-    estimator:
-      path: sklearn.linear_model.RidgeCV
-      kwargs:
-        alphas:
-          - 1.00000000e-06
-          - 3.16227766e-06
-          - 1.00000000e-05
-          - 3.16227766e-05
-          - 1.00000000e-04
-          - 3.16227766e-04
-          - 1.00000000e-03
-          - 3.16227766e-03
-          - 1.00000000e-02
-          - 3.16227766e-02
-          - 1.00000000e-01
-          - 3.16227766e-01
-          - 1.00000000e+00
-          - 3.16227766e+00
-          - 1.00000000e+01
-          - 3.16227766e+01
-          - 1.00000000e+02
-          - 3.16227766e+02
-          - 1.00000000e+03
-          - 3.16227766e+03
-          - 1.00000000e+04
-          - 3.16227766e+04
-          - 1.00000000e+05
-          - 3.16227766e+05
-          - 1.00000000e+06
-
-  # Modeling pairwise interactions with splines and polynomial features
-  - type: pipeline
+pipelines:
+  - name: binned_time_poly_kernel_approx
     steps:
-      - type: feature_union
-        steps:
-          - type: column_transformer
-            name: marginal
-            steps:
-              - type: preprocessor
-                name: categorical
-                path: sklearn.preprocessing.OneHotEncoder
-                kwargs:
-                  handle_unknown: ignore
-                  sparse: False
+      - column_transformer:
+          - transformers:
+              - name: categorical
                 columns:
                   - weather
                   - season
                   - holiday
                   - workingday
+                transformer:
+                  estimator: sklearn.preprocessing.OneHotEncoder
 
-              - type: preprocessor
-                name: cyclic_month
-                path: custom.periodic_spline_transformer
-                args:
-                  - 12
-                kwargs:
-                  n_splines: 6
+              - name: time
                 columns:
                   - month
-
-              - type: preprocessor
-                name: cyclic_weekday
-                path: custom.periodic_spline_transformer
-                args:
-                  - 7
-                kwargs:
-                  n_splines: 3
-                columns:
                   - weekday
-
-              - type: preprocessor
-                cyclic_hour: categorical
-                path: custom.periodic_spline_transformer
-                args:
-                  - 24
-                kwargs:
-                  n_splines: 12
-                columns:
                   - hour
-            kwargs:
-              remainder:
-                type: preprocessor
-                path: sklearn.preprocessing.MinMaxScaler
+                transformer:
+                  estimator: sklearn.preprocessing.KBinsDiscretizer
+                  params:
+                    bins: 5
 
-          - type: pipeline
-            name: interactions
-            steps:
-              - type: column_transformer
-                steps:
-                  - type: preprocessor
-                    name: cyclic_hour
-                    path: custom.periodic_spline_transformer
-                    args:
-                      - 24
-                    kwargs:
-                      n_splines: 8
-                    columns:
-                      - hour
+          - remainder:
+              estimator: sklearn.preprocessing.MinMaxScaler
 
-                  - type: preprocessor
-                    name: workingday
-                    path: custom.working_day_tranformer
-                    columns:
-                      - workingday
+      - estimator: sklearn.kernel_approximation.Nystroem
+        params:
+          n_components: 300
+          kernel: poly
+          degree: 2
+          random_state: 0
 
-              - type: preprocessor
-                path: sklearn.preprocessing.PolynomialFeatures
-                kwargs:
-                  degree: 2
-                  interaction_only: True
-                  include_bias: False
-
-      - type: estimator
-        path: sklearn.linear_model.RidgeCV
-        kwargs:
+      - estimator: sklearn.linear_model.RidgeCV
+        params:
           alphas:
-            - 1.00000000e-06
-            - 3.16227766e-06
-            - 1.00000000e-05
-            - 3.16227766e-05
-            - 1.00000000e-04
-            - 3.16227766e-04
-            - 1.00000000e-03
-            - 3.16227766e-03
-            - 1.00000000e-02
-            - 3.16227766e-02
-            - 1.00000000e-01
-            - 3.16227766e-01
-            - 1.00000000e+00
-            - 3.16227766e+00
-            - 1.00000000e+01
-            - 3.16227766e+01
-            - 1.00000000e+02
-            - 3.16227766e+02
-            - 1.00000000e+03
-            - 3.16227766e+03
-            - 1.00000000e+04
-            - 3.16227766e+04
-            - 1.00000000e+05
-            - 3.16227766e+05
-            - 1.00000000e+06
-
-  # Modeling non-linear feature interactions with kernels
-  - type: pipeline
-    steps:
-      - type: column_transformer
-        steps:
-          - type: preprocessor
-            name: categorical
-            path: sklearn.preprocessing.OneHotEncoder
-            kwargs:
-              handle_unknown: ignore
-              sparse: False
-            columns:
-              - weather
-              - season
-              - holiday
-              - workingday
-
-          - type: preprocessor
-            name: cyclic_month
-            path: custom.periodic_spline_transformer
+            callable: numpy.logspace
             args:
-              - 12
-            kwargs:
-              n_splines: 6
-            columns:
-              - month
-
-          - type: preprocessor
-            name: cyclic_weekday
-            path: custom.periodic_spline_transformer
-            args:
-              - 7
-            kwargs:
-              n_splines: 3
-            columns:
-              - weekday
-
-          - type: preprocessor
-            cyclic_hour: categorical
-            path: custom.periodic_spline_transformer
-            args:
-              - 24
-            kwargs:
-              n_splines: 12
-            columns:
-              - hour
-
-        kwargs:
-          remainder:
-            type: preprocessor
-            path: sklearn.preprocessing.MinMaxScaler
-
-    - type: kernel_approximation
-      path: sklearn.kernel_approximation.Nystroem
-      kwargs:
-        kernel: poly
-        degree: 2
-        n_components: 300
-        random_state: 0
-
-    - type: estimator
-      path: sklearn.linear_model.RidgeCV
-      kwargs:
-        alphas:
-          - 1.00000000e-06
-          - 3.16227766e-06
-          - 1.00000000e-05
-          - 3.16227766e-05
-          - 1.00000000e-04
-          - 3.16227766e-04
-          - 1.00000000e-03
-          - 3.16227766e-03
-          - 1.00000000e-02
-          - 3.16227766e-02
-          - 1.00000000e-01
-          - 3.16227766e-01
-          - 1.00000000e+00
-          - 3.16227766e+00
-          - 1.00000000e+01
-          - 3.16227766e+01
-          - 1.00000000e+02
-          - 3.16227766e+02
-          - 1.00000000e+03
-          - 3.16227766e+03
-          - 1.00000000e+04
-          - 3.16227766e+04
-          - 1.00000000e+05
-          - 3.16227766e+05
-          - 1.00000000e+06
+              - -6
+              - 6
+              - 25
